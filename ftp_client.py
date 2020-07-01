@@ -1,9 +1,10 @@
 from ftputil import FTPHost, error
 from ftplib import FTP
-import builtins
 from os import *
+from builtins import open
 
 USER_NAME = getlogin()
+
 
 class MySession(FTP):
 
@@ -12,52 +13,51 @@ class MySession(FTP):
         try:
             self.connect(host)
         except:
-            print("FTP server is not responsing, try again")
-        
+            ftp_print("FTP server is not responsing, try again")
+
         try:
             self.login(userid, password)
         except:
-            print("Cant to log in, try again")
-        print(self.getwelcome())
+            ftp_print("Cant to log in, try again")
+        ftp_print(self.getwelcome())
 
 
-def print(*args):
+def ftp_print(*args):
     for string in args:
-        builtins.print(f"ftp > {string}")
+        print(f"ftp > {string}")
 
 
-def input(string=""):
-    return builtins.input("ftp > " + string)
+def ftp_input(string=""):
+    return input("ftp > " + string)
 
 
 def main():
     ftp_host = None
     try:
         while True:
-            server = input("Set server address: ")
-            user = input("User: ")
-            password = input("Password: ")
+            server = ftp_input("Set server address: ")
+            user = ftp_input("User: ")
+            password = ftp_input("Password: ")
             try:
                 ftp_host = FTPHost(server, user, password)
                 break
             except error as e:
-                print(e)
-
+                ftp_print(e)
 
         keep_connection = True
         while keep_connection:
-            print("", "Upload - 1", "Download - 2")
-            action = int(input("Choose action: "))
+            ftp_print("", "Upload - 1", "Download - 2")
+            action = int(ftp_input("Choose action: "))
             if action == 1:
                 upload(ftp_host)
             elif action == 2:
                 download(ftp_host)
             else:
-                print("Wrong action, try again...")
+                ftp_print("Wrong action, try again...")
                 continue
 
     except KeyboardInterrupt:
-        print("Force exit...")
+        ftp_print("Force exit...")
         if ftp_host:
             ftp_host.close()
 
@@ -67,28 +67,26 @@ def download(ftp_host):
 
 
 def upload(ftp_host):
-    
     def upload_file(file, ftp_host):
-        target = input(f"Destination file name (default {file}): ")
-        print(path.abspath(file))
-        print(type(path.abspath(file)))
-        with builtins.open(path.abspath(file), 'rb') as source:
+        target = ftp_input(f"Destination file name (default {file}): ")
+        ftp_print(path.abspath(file))
+        ftp_print(type(path.abspath(file)))
+        with open(path.abspath(file), 'rb') as source:
             with ftp_host.open(target, 'wb') as target:
                 ftp_host.copyfileobj(source, target)
 
-
-    source = input("Path to file: ")
+    source = ftp_input("Path to file: ")
     if not path.exists(source):
-        print("File does not exist, try again...")
+        ftp_print("File does not exist, try again...")
     else:
         if path.isdir(source):
-            print(f"{source} is a directory.", 
-                  "1 - choose another file (default)",
-                  f"2 - upload all files in {source}", 
-                  "3 - upload recursively")
+            ftp_print(f"{source} is a directory.",
+                      "1 - choose another file (default)",
+                      f"2 - upload all files in {source}",
+                      "3 - upload recursively")
             answer = None
             while True:
-                answer = input("Choose command: ")
+                answer = ftp_input("Choose command: ")
                 if answer == "":
                     break
                 else:
@@ -98,19 +96,21 @@ def upload(ftp_host):
                             raise ValueError
                         else:
                             break
-                    except ValueError:   
-                        print("Unexpected command, please try again...")
+                    except ValueError:
+                        ftp_print("Unexpected command, please try again...")
                         continue
+
             if answer == 1:
-                upload()
+                upload(ftp_host)
             elif answer == 2:
                 chdir(path.dirname(path.abspath(source)))
-                files = listdir(curdir())
+                files = listdir(path.curdir)
                 for file in files:
                     if path.isdir(file):
                         continue
                     else:
-                        upload_file(file)
+                        upload_file(file, ftp_host)
+
             elif answer == 3:
                 items = walk(source)
                 for item in items:
@@ -119,10 +119,9 @@ def upload(ftp_host):
                     ftp_host.chdir(item[0])
                     for file in item[2]:
                         upload_file(item[0] + "/" + file, ftp_host)
-
         else:
             upload_file(source, ftp_host)
-            
+
 
 if __name__ == "__main__":
     main()
