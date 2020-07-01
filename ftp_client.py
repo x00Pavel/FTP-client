@@ -1,17 +1,9 @@
 from ftputil import FTPHost, error
 from ftplib import FTP
 import builtins
+from os import *
 
-
-def print(*args):
-    for string in args:
-        builtins.print("ftp > " + string)
-
-
-def input(string=""):
-    return builtins.input("ftp > " + string)
-
-
+USER_NAME = getlogin()
 
 class MySession(FTP):
 
@@ -29,61 +21,108 @@ class MySession(FTP):
         print(self.getwelcome())
 
 
-def download():
-    pass
-
-def upload():
-    pass
+def print(*args):
+    for string in args:
+        builtins.print(f"ftp > {string}")
 
 
-def actions(ftp_host):
-    keep_connection = True
-    while keep_connection:
-        print("", "Upload - 1", "Download - 2")
-        action = int(input("Choose action"))
-        if action == 1:
-            upload()
-        elif action == 2:
-            download()
-        else:
-            print("Wrong action, try again...")
-            continue
-        
+def input(string=""):
+    return builtins.input("ftp > " + string)
 
 
-
-if __name__ == "__main__":
+def main():
     ftp_host = None
     try:
         while True:
             server = input("Set server address: ")
-            if server == "":
-                server = "192.168.0.81"
             user = input("User: ")
-            if user == "":
-                user = "sammy"
             password = input("Password: ")
-            if password == "":
-                password = "1234"
             try:
-                ftp_host =  FTPHost(server, user, password)
+                ftp_host = FTPHost(server, user, password)
                 break
-            except error.PermanentError as e:
+            except error as e:
                 print(e)
-        
-        actions(ftp_host)
-        
 
-        
+
+        keep_connection = True
+        while keep_connection:
+            print("", "Upload - 1", "Download - 2")
+            action = int(input("Choose action: "))
+            if action == 1:
+                upload(ftp_host)
+            elif action == 2:
+                download(ftp_host)
+            else:
+                print("Wrong action, try again...")
+                continue
+
     except KeyboardInterrupt:
         print("Force exit...")
         if ftp_host:
             ftp_host.close()
-        # names = ftp_host.listdir(ftp_host.curdir)
-    # for name in names:
-    #     if ftp_host.path.isfile(name):
-    #         ftp_host.download(name, name)  # remote, local
-    # # Make a new directory and copy a remote file into it.
-    # with ftp_host.open("~/test.txt", "rb") as source:
-    #     with ftp_host.open("index.html", "wb") as target:
-    #         ftp_host.copyfileobj(source, target)  # similar to shutil.copyfileobj
+
+
+def download(ftp_host):
+    pass
+
+
+def upload(ftp_host):
+    
+    def upload_file(file, ftp_host):
+        target = input(f"Destination file name (default {file}): ")
+        print(path.abspath(file))
+        print(type(path.abspath(file)))
+        with builtins.open(path.abspath(file), 'rb') as source:
+            with ftp_host.open(target, 'wb') as target:
+                ftp_host.copyfileobj(source, target)
+
+
+    source = input("Path to file: ")
+    if not path.exists(source):
+        print("File does not exist, try again...")
+    else:
+        if path.isdir(source):
+            print(f"{source} is a directory.", 
+                  "1 - choose another file (default)",
+                  f"2 - upload all files in {source}", 
+                  "3 - upload recursively")
+            answer = None
+            while True:
+                answer = input("Choose command: ")
+                if answer == "":
+                    break
+                else:
+                    try:
+                        answer = int(answer)
+                        if answer < 1 or answer > 3:
+                            raise ValueError
+                        else:
+                            break
+                    except ValueError:   
+                        print("Unexpected command, please try again...")
+                        continue
+            if answer == 1:
+                upload()
+            elif answer == 2:
+                chdir(path.dirname(path.abspath(source)))
+                files = listdir(curdir())
+                for file in files:
+                    if path.isdir(file):
+                        continue
+                    else:
+                        upload_file(file)
+            elif answer == 3:
+                items = walk(source)
+                for item in items:
+                    if not ftp_host.path.exists(item[0]):
+                        ftp_host.mkdir(item[0])
+                    ftp_host.chdir(item[0])
+                    for file in item[2]:
+                        upload_file(item[0] + "/" + file, ftp_host)
+
+        else:
+            upload_file(source, ftp_host)
+            
+
+if __name__ == "__main__":
+    main()
