@@ -1,127 +1,118 @@
 from ftputil import FTPHost, error
 from ftplib import FTP
-from os import *
+import os
 from builtins import open
 
-USER_NAME = getlogin()
+USER_NAME = os.getlogin()
 
+class Host:
+    def __init__(self):
 
-class MySession(FTP):
+        self.host = None
+        while True:
+            host = user_input("Set FTP server: ")
+            if host == "":
+                host = "192.168.0.81"
+            user = user_input("Login: ")
+            if user == "":
+                user = "sammy"
+            psswd = user_input("Password: ")
+            if psswd == "":
+                psswd = "1234"
+            
+            try:
+                self.host = FTPHost(host, user, psswd)
+                break
+            except:
+                info(["FTP server is not responsing, try again"])
+                continue
 
-    def __init__(self, host, userid, password):
-        FTP.__init__(self)
+        self.actions = {"1": self.upload, 
+               "upload": self.upload, 
+               "2": self.download, 
+               "download": self.download,
+               "ftp_cd": self.change_dir}
+            #    TODO commands
+
+    def change_dir(self, path, host="ftp"):
         try:
-            self.connect(host)
+            if host == "ftp":
+                self.host.chdir(path)
+            else:
+                os.chdir(path)
         except:
-            ftp_print("FTP server is not responsing, try again")
+            info(["Path doesn't exits"])
+            
+    
+    def show_dir(self, host="ftp"):
+        if host == "ftp":
+            self.host.listdir(self.host.curdir)
+        else:
+            info(os.listdir())
 
-        try:
-            self.login(userid, password)
-        except:
-            ftp_print("Cant to log in, try again")
-        ftp_print(self.getwelcome())
+    def download(self):
+        info(["Choose: download"])
+        # TODO downloading
+
+    def upload(self):
+        # self.show_dir()
+        file = user_input("Choose file or directory: ")
+        # TODO uploading
 
 
-def ftp_print(*args):
-    for string in args:
-        print(f"ftp > {string}")
+class Session:
+
+    def __init__(self):
+        while True:
+            try:
+                os.chdir(f"/home/{USER_NAME}/")
+                self.ftp_host = Host()
+            except:
+                info(["There is problem with loging. Try again..."])
+                continue
+
+        self.keep_alive = True
+
+    
+def info(args=[""]):
+    for item in args:
+        print(f"ftp > {item}")
 
 
-def ftp_input(string=""):
-    return input("ftp > " + string)
+def user_input(string):
+    return input(f"ftp > {string}")
+
+
+def choose_action(host):
+    info(["Choose action:", "\t1 - Upload", "\t2 - Download"])
+    while True:
+        action = user_input("")
+        if action.lower() not in host.actions.keys():
+            info(["Wrong command. Try again..."])
+        else:
+            return host.actions[action]
+
+
+def print_cmd():
+    info(["Commands:",
+        "\tcd <path> - change directory",
+        "\tmkdir <path> - create directory",
+        "\trm <path> - remove file",
+        "This commands similar in meaning to standart bash commands and can be inserted in any time of processing"])
+        # TODO commands
 
 
 def main():
-    ftp_host = None
-    try:
-        while True:
-            server = ftp_input("Set server address: ")
-            user = ftp_input("User: ")
-            password = ftp_input("Password: ")
-            try:
-                ftp_host = FTPHost(server, user, password)
-                break
-            except error as e:
-                ftp_print(e)
-
-        keep_connection = True
-        while keep_connection:
-            ftp_print("", "Upload - 1", "Download - 2")
-            action = int(ftp_input("Choose action: "))
-            if action == 1:
-                upload(ftp_host)
-            elif action == 2:
-                download(ftp_host)
-            else:
-                ftp_print("Wrong action, try again...")
-                continue
-
-    except KeyboardInterrupt:
-        ftp_print("Force exit...")
-        if ftp_host:
-            ftp_host.close()
-
-
-def download(ftp_host):
-    pass
-
-
-def upload(ftp_host):
-    def upload_file(file, ftp_host):
-        target = ftp_input(f"Destination file name (default {file}): ")
-        ftp_print(path.abspath(file))
-        ftp_print(type(path.abspath(file)))
-        with open(path.abspath(file), 'rb') as source:
-            with ftp_host.open(target, 'wb') as target:
-                ftp_host.copyfileobj(source, target)
-
-    source = ftp_input("Path to file: ")
-    if not path.exists(source):
-        ftp_print("File does not exist, try again...")
-    else:
-        if path.isdir(source):
-            ftp_print(f"{source} is a directory.",
-                      "1 - choose another file (default)",
-                      f"2 - upload all files in {source}",
-                      "3 - upload recursively")
-            answer = None
-            while True:
-                answer = ftp_input("Choose command: ")
-                if answer == "":
-                    break
-                else:
-                    try:
-                        answer = int(answer)
-                        if answer < 1 or answer > 3:
-                            raise ValueError
-                        else:
-                            break
-                    except ValueError:
-                        ftp_print("Unexpected command, please try again...")
-                        continue
-
-            if answer == 1:
-                upload(ftp_host)
-            elif answer == 2:
-                chdir(path.dirname(path.abspath(source)))
-                files = listdir(path.curdir)
-                for file in files:
-                    if path.isdir(file):
-                        continue
-                    else:
-                        upload_file(file, ftp_host)
-
-            elif answer == 3:
-                items = walk(source)
-                for item in items:
-                    if not ftp_host.path.exists(item[0]):
-                        ftp_host.mkdir(item[0])
-                    ftp_host.chdir(item[0])
-                    for file in item[2]:
-                        upload_file(item[0] + "/" + file, ftp_host)
-        else:
-            upload_file(source, ftp_host)
-
+    session = Session()
+    print_cmd()
+    while session.keep_alive:
+        
+        action = choose_action(session.ftp_host)
+        try:
+            action()
+        except Exception as e:
+            info([e])
+            break
 
 if __name__ == "__main__":
     main()
